@@ -6,15 +6,17 @@ const app = express();
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
-    secret: 'gizli-anahtar-veriqx-ultimate',
+    secret: 'gizli-anahtar-veriqx-ultimate-v3',
     resave: false,
     saveUninitialized: true
 }));
 
+// 🔒 GİRİŞ BİLGİLERİ
 const KULLANICI_ADI = 'WeriqX';
 const SIFRE = '1108';
 
-const VARSAYILAN_AYARLAR = {
+// 🏠 DEĞİŞTİRİLEBİLİR PANEL HAFIZASI
+let botAyarlari = {
     host: '11806.aternos.me',
     port: 60211,
     version: '1.20.1',
@@ -22,12 +24,16 @@ const VARSAYILAN_AYARLAR = {
 };
 
 let aktifBot = null;
-let botDurumu = "Bot Başlatılmadı";
-let baglantiHatasiVarMi = false;
-let sonKullanilanAyarlar = { ...VARSAYILAN_AYARLAR };
+let botDurumu = "Bot Başlatılmadı (Bilgileri girip başlatın)";
 let sohbetLoglari = [];
 let antiAfkDongusu = null;
 
+// Render'ın kapanmasını önleyen canlı tutma döngüsü
+setInterval(() => {
+    console.log("[Sistem] Web sunucusu arka planda kararlı şekilde uyanık.");
+}, 30000);
+
+// HTML Yapısı (Ters eğik çizgi hatasından tamamen arındırıldı)
 function dynamicHTML(icerik) {
     return `
     <!DOCTYPE html>
@@ -35,23 +41,19 @@ function dynamicHTML(icerik) {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>WeriqX Ultimate Bot Kontrol Paneli</title>
+        <title>WeriqX Ultimate Kontrol Paneli</title>
         <style>
             body { font-family: 'Segoe UI', sans-serif; background: #141419; color: #fff; text-align: center; padding: 15px; margin: 0; }
             .container { max-width: 500px; margin: 20px auto; background: #1f1f2a; padding: 25px; border-radius: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); box-sizing: border-box; border: 1px solid #2d2d3d; }
             h2 { color: #4caf50; margin-bottom: 20px; font-size: 24px; font-weight: 600; }
             .subtitle { color: #aaaaaa; font-size: 13px; margin-top: -15px; margin-bottom: 20px; }
             label { display: block; text-align: left; font-size: 12px; color: #b0bec5; margin-top: 10px; font-weight: bold; }
-            input { width: 100%; padding: 12px; margin: 5px 0 12px 0; border: 1px solid #2d2d3d; border-radius: 8px; background: #2a2a3a; color: #fff; box-sizing: border-box; font-size: 14px; transition: 0.3s; }
+            input { width: 100%; padding: 12px; margin: 5px 0 12px 0; border: 1px solid #2d2d3d; border-radius: 8px; background: #2a2a3a; color: #fff; box-sizing: border-box; font-size: 14px; }
             input:focus { border-color: #4caf50; outline: none; background: #323246; }
             button { width: 100%; padding: 12px; border: none; border-radius: 8px; background: #4caf50; color: white; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 5px; }
             button:hover { background: #45a049; }
             .btn-danger { background: #f44336; margin-top: 15px; }
-            .btn-danger:hover { background: #da190b; }
-            .btn-orange { background: #ff9800; }
-            .btn-orange:hover { background: #e68a00; }
             .status { background: #262636; padding: 15px; border-radius: 8px; margin-top: 15px; text-align: left; font-size: 14px; line-height: 1.6; border-left: 5px solid #4caf50; }
-            .error-box { background: #f44336; color: white; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: bold; margin-bottom: 15px; text-align: left; }
             .log-title { text-align: left; font-weight: bold; margin-top: 20px; color: #ffa726; font-size: 14px; }
             .log-box { width: 100%; height: 180px; background: #0c0c10; border-radius: 8px; padding: 10px; overflow-y: auto; text-align: left; font-family: monospace; font-size: 12px; color: #00ff66; box-sizing: border-box; margin-top: 5px; border: 1px solid #2d2d3d; }
             .chat-send-form { display: flex; gap: 5px; margin-top: 8px; }
@@ -77,55 +79,52 @@ app.get('/', (req, res) => {
         `));
     }
 
-    if (!aktifBot) {
-        let menuIcerik = "";
-        if (baglantiHatasiVarMi) {
-            menuIcerik += `
-                <div class="error-box">
-                    ⚠️ BAĞLANTI HATASI: Sunucuya ulaşılamadı! Aternos kapalı olabilir veya port eskimiş olabilir. Lütfen aşağıdaki bilgileri güncelleyip tekrar deneyin.
-                </div>
-                <h2>Dinamik Yeniden Bağlanma Menüsü</h2>
-            `;
-        } else {
-            menuIcerik += `<h2>Bot Yapılandırma Menüsü</h2>`;
-        }
+    const logSatirlari = sohbetLoglari.map(log => `<div>${log}</div>`).join('');
 
-        menuIcerik += `
-            <div class="subtitle">Bilgileri değiştirebilir veya direkt başlatabilirsiniz.</div>
+    let formAlani = '';
+    if (!aktifBot) {
+        formAlani = `
             <form action="/baslat" method="POST">
-                <label>Sunucu IP Adresi / DynIP</label>
-                <input type="text" name="host" value="${sonKullanilanAyarlar.host}" required autocomplete="off">
-                <label>Bağlantı Portu (Port)</label>
-                <input type="number" name="port" value="${sonKullanilanAyarlar.port}" required>
+                <label>Sunucu IP / Adresi / DynIP</label>
+                <input type="text" name="host" value="${botAyarlari.host}" required autocomplete="off">
+                
+                <label>Port (Aternos Giriş Portu)</label>
+                <input type="number" name="port" value="${botAyarlari.port}" required>
+                
                 <label>Minecraft Sürümü</label>
-                <input type="text" name="version" value="${sonKullanilanAyarlar.version}" required autocomplete="off">
-                <label>Bot Kullanıcı Adı (Nick)</label>
-                <input type="text" name="botname" value="${sonKullanilanAyarlar.botname}" required autocomplete="off">
-                <button type="submit" class="${baglantiHatasiVarMi ? 'btn-orange' : ''}">
-                    ${baglantiHatasiVarMi ? '⚡ Yeni Bilgilerle Tekrar Dene' : '🟢 Botu Sunucuya Sok'}
-                </button>
+                <input type="text" name="version" value="${botAyarlari.version}" required autocomplete="off">
+                
+                <label>Bot İsmi (Oyundaki Nick)</label>
+                <input type="text" name="botname" value="${botAyarlari.botname}" required autocomplete="off">
+                
+                <button type="submit">🟢 Yeni Özelliklerle Başlat</button>
             </form>
         `;
-        return res.send(dynamicHTML(menuIcerik));
+    } else {
+        formAlani = `
+            <form action="/durdur" method="POST">
+                <button type="submit" class="btn-danger">❌ Botu Sunucudan Çıkar ve Ayarları Değiştir</button>
+            </form>
+        `;
     }
 
-    const logSatirlari = sohbetLoglari.map(log => `<div>${log}</div>`).join('');
-    return res.send(dynamicHTML(`
-        <h2>WeriqX Canlı Kontrol Paneli</h2>
+    res.send(dynamicHTML(`
+        <h2>WeriqX Kontrol Paneli</h2>
         <div class="status">
             <strong>Durum:</strong> ${botDurumu}<br>
-            <strong>Bağlı Sunucu:</strong> ${sonKullanilanAyarlar.host}:${sonKullanilanAyarlar.port}<br>
-            <strong>Aktif Karakter:</strong> ${sonKullanilanAyarlar.botname} (${sonKullanilanAyarlar.version})
+            <strong>Aktif Ayarlar:</strong> ${botAyarlari.host}:${botAyarlari.port} | Sürüm: ${botAyarlari.version}
         </div>
+
+        ${formAlani}
+
         <div class="log-title">Oyun İçi Canlı Sohbet:</div>
-        <div class="log-box" id="logs">${logSatirlari || 'Sunucudan paketler senkronize ediliyor...'}</div>
+        <div class="log-box" id="logs">${logSatirlari || 'Bağlantı pasif. Sohbet bekleniyor...'}</div>
+
         <form action="/mesajgonder" method="POST" class="chat-send-form">
             <input type="text" name="chatmsg" placeholder="Sohbete yazın veya /komut gönderin" required autocomplete="off">
             <button type="submit">Gönder</button>
         </form>
-        <form action="/durdur" method="POST">
-            <button type="submit" class="btn-danger">❌ Botu Sunucudan Çıkar</button>
-        </form>
+
         <script>
             const objDiv = document.getElementById("logs");
             if(objDiv) objDiv.scrollTop = objDiv.scrollHeight;
@@ -142,34 +141,41 @@ app.post('/login', (req, res) => {
 
 app.post('/baslat', (req, res) => {
     if (!req.session.loggedIn || aktifBot) return res.redirect('/');
+
     const { host, port, version, botname } = req.body;
-    sonKullanilanAyarlar = { host: host.trim(), port: parseInt(port), version: version.trim(), botname: botname.trim() };
-    botDurumu = "⏳ Bağlantı protokolü yürütülüyor...";
-    sohbetLoglari = [`[Sistem] ${sonKullanilanAyarlar.host}:${sonKullanilanAyarlar.port} adresine istek gönderildi...`];
-    baglantiHatasiVarMi = false;
+    
+    botAyarlari = {
+        host: host.trim(),
+        port: parseInt(port),
+        version: version.trim(),
+        botname: botname.trim()
+    };
+
+    botDurumu = "⏳ Bağlanıyor...";
+    sohbetLoglari = [`[Sistem] ${botAyarlari.host}:${botAyarlari.port} adresine bağlantı isteği gönderildi...`];
 
     try {
         aktifBot = mineflayer.createBot({
-            host: sonKullanilanAyarlar.host,
-            port: sonKullanilanAyarlar.port,
-            username: sonKullanilanAyarlar.botname,
-            version: sonKullanilanAyarlar.version,
+            host: botAyarlari.host,
+            port: botAyarlari.port,
+            username: botAyarlari.botname,
+            version: botAyarlari.version,
             auth: 'offline',
-            checkTimeoutInterval: 30000,
-            connectTimeout: 30000,
+            checkTimeoutInterval: 45000,
+            connectTimeout: 45000,
             keepAlive: true,
             hideErrors: true
         });
 
         aktifBot.on('login', () => {
-            botDurumu = "🟢 Giriş Onaylandı!";
-            sohbetLoglari.push("[Sistem] Sunucu kimliği doğruladı. Giriş yapılıyor.");
+            botDurumu = "🟢 Giriş Yapıldı!";
+            sohbetLoglari.push("[Sistem] Sunucu el sıkışması başarılı.");
         });
 
         aktifBot.on('spawn', () => {
             botDurumu = "🟢 OYUNUN İÇİNDE VE AKTİF!";
-            sohbetLoglari.push("[Sistem] Başarıyla doğdunuz. Anti-AFK aktif.");
-            baglantiHatasiVarMi = false;
+            sohbetLoglari.push("[Sistem] Bot haritada doğdu. Korumalar devrede.");
+            
             if (antiAfkDongusu) clearInterval(antiAfkDongusu);
             antiAfkDongusu = setInterval(() => {
                 if (aktifBot && aktifBot.entity) {
@@ -177,7 +183,7 @@ app.post('/baslat', (req, res) => {
                     aktifBot.setControlState('jump', true);
                     setTimeout(() => { if(aktifBot) aktifBot.setControlState('jump', false); }, 200);
                 }
-            }, 25000);
+            }, 20000);
         });
 
         aktifBot.on('messagestr', (messageStr) => {
@@ -186,29 +192,46 @@ app.post('/baslat', (req, res) => {
         });
 
         aktifBot.on('end', (reason) => {
-            botDurumu = "🔴 Çevrimdışı";
+            botDurumu = "🔴 Çevrimdışı (Bağlantı Kesildi)";
+            sohbetLoglari.push(`[Sistem] Sunucu bağlantıyı kesti.`);
             if (antiAfkDongusu) clearInterval(antiAfkDongusu);
             aktifBot = null;
         });
 
         aktifBot.on('error', (err) => {
-            baglantiHatasiVarMi = true;
-            botDurumu = "❌ Bağlantı Başarısız";
+            botDurumu = `❌ Sunucuya Bağlanamadı`;
+            sohbetLoglari.push(`[Hata] Port yanlış veya Aternos kapalı.`);
             if (antiAfkDongusu) clearInterval(antiAfkDongusu);
             if (aktifBot) { try { aktifBot.end(); } catch(e){} }
             aktifBot = null;
         });
+
     } catch (error) {
-        baglantiHatasiVarMi = true;
+        botDurumu = "❌ Başlatma Hatası";
         aktifBot = null;
     }
-    setTimeout(() => { res.redirect('/'); }, 1500);
+
+    setTimeout(() => { res.redirect('/'); }, 1000);
 });
 
 app.post('/mesajgonder', (req, res) => {
     if (req.session.loggedIn && aktifBot) {
-        try { aktifBot.chat(req.body.chatmsg); sohbetLoglari.push(`> Siz: ${req.body.chatmsg}`); } catch (e){}
+        try { 
+            aktifBot.chat(req.body.chatmsg); 
+            sohbetLoglari.push(`> Siz: ${req.body.chatmsg}`); 
+        } catch (e){}
     }
     res.redirect('/');
 });
 
+app.post('/durdur', (req, res) => {
+    if (aktifBot) {
+        try { aktifBot.end(); aktifBot.quit(); } catch(e){}
+        aktifBot = null;
+    }
+    if (antiAfkDongusu) clearInterval(antiAfkDongusu);
+    botDurumu = "Bot Başlatılmadı (Bilgileri girip başlatın)";
+    res.redirect('/');
+});
+
+app.listen(process.env.PORT || 3000);
