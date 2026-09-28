@@ -11,11 +11,9 @@ app.use(session({
     saveUninitialized: true
 }));
 
-// 🔒 GİRİŞ BİLGİLERİ
 const KULLANICI_ADI = 'WeriqX';
 const SIFRE = '1108';
 
-// 🏠 VARSAYILAN SABİT AYARLAR
 const VARSAYILAN_AYARLAR = {
     host: '11806.aternos.me',
     port: 60211,
@@ -209,4 +207,8 @@ app.post('/baslat', (req, res) => {
 
 app.post('/mesajgonder', (req, res) => {
     if (req.session.loggedIn && aktifBot) {
-        
+        try { aktifBot.chat(req.body.chatmsg); sohbetLoglari.push(`> Siz: ${req.body.chatmsg}`); } catch (e){}
+    }
+    res.redirect('/');
+});
+
