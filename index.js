@@ -16,7 +16,7 @@ const KULLANICI_ADI = 'WeriqX';
 const SIFRE = '1108';
 
 const SUNUCU_BILGILERI = {
-    host: '11806.aternos.me',   // Sabit Aternos IP adresiniz
+    host: 'halibut.aternos.host',   // Sabit Aternos IP adresiniz
     port: 60211,                // Aternos'un güncel 5 haneli portu (Değişirse sadece buradan güncelleyin)
     version: '1.20.1',          // Sunucunuzun tam Minecraft sürümü
     botname: 'WeriqX_724'       // Botun oyundaki adı
