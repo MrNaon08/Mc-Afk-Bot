@@ -34,17 +34,15 @@ function dynamicHTML(icerik) {
             input, select { width: 100%; padding: 12px; margin: 10px 0; border: none; border-radius: 8px; background: #3e3e4f; color: #fff; box-sizing: border-box; font-size: 14px; }
             button { width: 100%; padding: 12px; border: none; border-radius: 8px; background: #4caf50; color: white; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 10px; }
             button:hover { background: #45a049; }
-            .btn-danger { background: #f44336; margin-top: 20px; font-size: 16px; }
+            .btn-danger { background: #f44336; margin-top: 20px; }
             .btn-danger:hover { background: #da190b; }
             .status { background: #3a3a4a; padding: 15px; border-radius: 8px; margin-top: 15px; font-size: 14px; text-align: left; line-height: 1.6; }
             .skin-img { width: 80px; height: 80px; margin: 10px 0; image-rendering: pixelated; border-radius: 8px; background: #15151a; padding: 5px; }
-            
             .log-title { text-align: left; font-weight: bold; margin-top: 20px; color: #ffb74d; font-size: 14px; }
             .log-box { width: 100%; height: 180px; background: #15151a; border-radius: 8px; padding: 10px; overflow-y: auto; text-align: left; font-family: monospace; font-size: 12px; color: #00ff00; box-sizing: border-box; margin-top: 5px; border: 1px solid #3e3e4f; }
             .chat-send-form { display: flex; gap: 5px; margin-top: 8px; }
             .chat-send-form input { margin: 0; flex: 1; }
             .chat-send-form button { margin: 0; width: auto; padding: 0 20px; background: #2196f3; }
-            .chat-send-form button:hover { background: #0b7dda; }
         </style>
     </head>
     <body>
@@ -72,9 +70,9 @@ app.get('/', (req, res) => {
         return res.send(dynamicHTML(`
             <h2>Bot Oluştur</h2>
             <form action="/olustur" method="POST">
-                <input type="text" name="host" placeholder="Sunucu IP Adresi (Örn: 11806.aternos.me)" required>
-                <input type="number" name="port" placeholder="Port (Örn: 60211)" value="25565" required>
-                <input type="text" name="version" placeholder="Sürüm (Örn: 1.20.1)" value="1.20.1" required>
+                <input type="text" name="host" placeholder="Sunucu IP Adresi" required>
+                <input type="number" name="port" placeholder="Port" value="25565" required>
+                <input type="text" name="version" placeholder="Sürüm" value="1.20.1" required>
                 <input type="text" name="botname" placeholder="Bot İsmi" value="WeriqX_Bot" required>
                 <button type="submit">Bot Oluştur</button>
             </form>
@@ -86,7 +84,7 @@ app.get('/', (req, res) => {
 
     res.send(dynamicHTML(`
         <h2>Bot Yönetim Paneli</h2>
-        <div style="color: #8bc34a; font-weight: bold; margin-bottom: 5px;">Bot Ayarları Aktif!</div>
+        <div style="color: #8bc34a; font-weight: bold; margin-bottom: 5px;">Bağlantı Paneli Aktif</div>
         <img src="${skinUrl}" class="skin-img" alt="Minecraft Skin">
         
         <div class="status">
@@ -97,14 +95,13 @@ app.get('/', (req, res) => {
         </div>
 
         <div class="log-title">Oyun İçi Sohbet / Loglar:</div>
-        <div class="log-box" id="logs">${logSatirlari || 'Bağlantı bekleniyor...'}</div>
+        <div class="log-box" id="logs">${logSatirlari || 'Mesaj bekleniyor...'}</div>
 
         <form action="/mesajgonder" method="POST" class="chat-send-form">
             <input type="text" name="chatmsg" placeholder="Sohbete yazın veya /komut gönderin" required autocomplete="off">
             <button type="submit">Gönder</button>
         </form>
 
-        <!-- Güçlendirilmiş Çıkış Butonu -->
         <form action="/durdur" method="POST">
             <button type="submit" class="btn-danger">❌ Botu Sunucudan Çıkar ve Kapat</button>
         </form>
@@ -118,9 +115,7 @@ app.get('/', (req, res) => {
 
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
-    if (username === KULLANICI_ADI && password === SIFRE) {
-        req.session.loggedIn = true;
-    }
+    if (username === KULLANICI_ADI && password === SIFRE) req.session.loggedIn = true;
     res.redirect('/');
 });
 
@@ -129,8 +124,8 @@ app.post('/olustur', (req, res) => {
 
     const { host, port, version, botname } = req.body;
     botBilgileri = { host, port: parseInt(port), version, name: botname };
-    botDurumu = "⏳ Sunucuya bağlanıyor...";
-    sohbetLoglari = ["[Sistem] Bağlantı başlatıldı..."];
+    botDurumu = "⏳ Bağlanıyor (Aternos Kontrol Ediliyor)...";
+    sohbetLoglari = ["[Sistem] Sunucu soketine istek gönderildi..."];
 
     try {
         aktifBot = mineflayer.createBot({
@@ -138,17 +133,19 @@ app.post('/olustur', (req, res) => {
             port: botBilgileri.port,
             username: botBilgileri.name,
             version: botBilgileri.version,
+            connectTimeout: 45000, // Zaman aşımı süresini 45 saniyeye çıkardık
+            checkTimeoutInterval: 45000,
             hideErrors: true
         });
 
         aktifBot.on('login', () => {
-            botDurumu = "🟢 Sunucuya Giriş Yapıldı!";
-            sohbetLoglari.push("[Sistem] Başarıyla oturum açıldı.");
+            botDurumu = "🟢 Giriş Onaylandı!";
+            sohbetLoglari.push("[Sistem] Sunucu el sıkışması başarılı. Oturum açıldı.");
         });
 
         aktifBot.on('spawn', () => {
             botDurumu = "🟢 Oyunda ve Aktif!";
-            sohbetLoglari.push("[Sistem] Karakter dünyada doğdu.");
+            sohbetLoglari.push("[Sistem] Bot dünyaya başarıyla doğdu.");
         });
 
         aktifBot.on('messagestr', (messageStr) => {
@@ -161,18 +158,18 @@ app.post('/olustur', (req, res) => {
 
         aktifBot.on('end', (reason) => {
             botDurumu = `🔴 Bağlantı Kesildi`;
-            sohbetLoglari.push(`[Sistem] Bağlantı koptu veya bot çıkarıldı.`);
+            sohbetLoglari.push(`[Sistem] Bağlantı koptu veya kapatıldı.`);
             aktifBot = null;
         });
 
         aktifBot.on('error', (err) => {
-            botDurumu = `❌ Bağlantı Hatası`;
-            sohbetLoglari.push(`[Hata] Sunucu kapalı veya port yanlış.`);
+            botDurumu = `❌ Sunucuya Ulaşılamadı`;
+            sohbetLoglari.push(`[Hata] Aternos kapalı, port değişmiş veya Render IP engellenmiş olabilir.`);
             aktifBot = null;
         });
 
     } catch (error) {
-        botDurumu = `❌ Hata`;
+        botDurumu = `❌ Başlatma Hatası`;
         aktifBot = null;
     }
 
@@ -181,26 +178,21 @@ app.post('/olustur', (req, res) => {
 
 app.post('/mesajgonder', (req, res) => {
     if (!req.session.loggedIn || !aktifBot) return res.redirect('/');
-    
     const { chatmsg } = req.body;
     if (chatmsg && chatmsg.trim() !== "") {
         try {
             aktifBot.chat(chatmsg); 
             sohbetLoglari.push(`> Siz: ${chatmsg}`);
-        } catch (e) {
-            sohbetLoglari.push(`[Sistem] Mesaj gönderilemedi.`);
-        }
+        } catch (e){}
     }
     res.redirect('/');
 });
 
-// Kesin ve Güvenli Çıkış Fonksiyonu
 app.post('/durdur', (req, res) => {
     if (!req.session.loggedIn) return res.redirect('/');
-    
     if (aktifBot) {
         try { 
-            aktifBot.end('Kullanıcı isteğiyle çıkış yapıldı.'); // Sunucuyla olan soket bağını zorla koparır
+            aktifBot.end();
             aktifBot.quit(); 
         } catch(e){}
         aktifBot = null;
